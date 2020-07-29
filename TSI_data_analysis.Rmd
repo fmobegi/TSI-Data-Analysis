@@ -266,7 +266,11 @@ We sought to identify these patterns using Distance-based redundancy analysis in
 
 ![Spearman and CCA Figure 3](Figure 3.png)
 
+<<<<<<< HEAD
 We also cleaned the svg files generated from LEfSe and <a href="https://huttenhower.sph.harvard.edu/metaphlan" target="_blank">MetaPhlAn2</a>-<a href="https://huttenhower.sph.harvard.edu/graphlan" target="_blank">GraPhlAn</a> pipelines
+=======
+We also cleaned the svg files generated from LEfSe and <a href="https://huttenhower.sph.harvard.edu/metaphlan" target="_blank">MetaPhlAn2></a>-<a href="https://huttenhower.sph.harvard.edu/graphlan" target="_blank">GraPhlAn></a> pipelines
+>>>>>>> 07cfba795f22a07f839f1dcbac79f0ce45cd8e19
 
 ![The MetaPhlAn Graphlan plot plots for this data](FigureS2.png)
 
