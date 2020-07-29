@@ -1,0 +1,615 @@
+ANOVA FOR: Age
+
+            Df Sum Sq Mean Sq F value  Pr(>F)   
+Site         1   2601  2601.0   9.293 0.00296 **
+Residuals   98  27430   279.9                   
+---
+Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+
+ANOVA TukeyHSD TEST FOR: Age  Tukey multiple comparisons of means
+    95% family-wise confidence level
+
+Fit: aov(formula = dat.anova.log[, i] ~ factor(Site), data = dat.anova.log)
+
+$`factor(Site)`
+    diff      lwr      upr     p adj
+2-1 10.2 3.559907 16.84009 0.0029579
+
+------------------------------------------------------------------------
+
+ANOVA FOR: Alcohol
+
+            Df Sum Sq Mean Sq F value Pr(>F)
+Site         1    4.1   4.138   1.134   0.597
+Residuals   95  346.6   3.649               
+3 observations deleted due to missingness
+
+ANOVA TukeyHSD TEST FOR: Alcohol  Tukey multiple comparisons of means
+    95% family-wise confidence level
+
+Fit: aov(formula = dat.anova.log[, i] ~ factor(Site), data = dat.anova.log)
+
+$`factor(Site)`
+         diff        lwr      upr     p adj
+2-1 0.4131017 -0.3570307 1.183234 0.5966223
+
+------------------------------------------------------------------------
+
+ANOVA FOR: BMI
+
+            Df Sum Sq Mean Sq F value Pr(>F)
+Site         1      1    0.94   0.018  0.893
+Residuals   98   5023   51.26               
+
+ANOVA TukeyHSD TEST FOR: BMI  Tukey multiple comparisons of means
+    95% family-wise confidence level
+
+Fit: aov(formula = dat.anova.log[, i] ~ factor(Site), data = dat.anova.log)
+
+$`factor(Site)`
+      diff       lwr      upr     p adj
+2-1 -0.194 -3.035542 2.647542 0.8925062
+
+------------------------------------------------------------------------
+
+ANOVA FOR: CRP
+
+            Df Sum Sq Mean Sq F value   Pr(>F)    
+Site         1  3.917   3.917   32.96 1.63e-07 ***
+Residuals   80  9.507   0.119                     
+---
+Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+18 observations deleted due to missingness
+
+ANOVA TukeyHSD TEST FOR: CRP  Tukey multiple comparisons of means
+    95% family-wise confidence level
+
+Fit: aov(formula = dat.anova.log[, i] ~ factor(Site), data = dat.anova.log)
+
+$`factor(Site)`
+         diff       lwr       upr p adj
+2-1 0.4418595 0.2886908 0.5950281 2e-07
+
+------------------------------------------------------------------------
+
+ANOVA FOR: SBP
+
+            Df Sum Sq Mean Sq F value Pr(>F)  
+Site         1   1641  1640.6   5.006 0.0275 *
+Residuals   97  31788   327.7                 
+---
+Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+1 observation deleted due to missingness
+
+ANOVA TukeyHSD TEST FOR: sbp  Tukey multiple comparisons of means
+    95% family-wise confidence level
+
+Fit: aov(formula = dat.anova.log[, i] ~ factor(Site), data = dat.anova.log)
+
+$`factor(Site)`
+        diff       lwr      upr     p adj
+2-1 8.142041 0.9196159 15.36447 0.0275467
+
+------------------------------------------------------------------------
+
+ANOVA FOR: MAP
+
+            Df Sum Sq Mean Sq F value Pr(>F)
+Site         1   1327  1326.2   7.001 0.034 *
+Residuals   97  13719   141.4
+---
+Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1               
+1 observation deleted due to missingness
+
+ANOVA TukeyHSD TEST FOR: MAP  Tukey multiple comparisons of means
+    95% family-wise confidence level
+
+Fit: aov(formula = dat.anova.log[, i] ~ factor(Site), data = dat.anova.log)
+
+$`factor(Site)`
+          diff       lwr     upr    p adj
+2-1 -7.0892517 -4.833924 4.65542 0.0342695
+
+------------------------------------------------------------------------
+
+ANOVA FOR: Fruits
+
+            Df Sum Sq Mean Sq F value Pr(>F)
+Site         1    0.2  0.2025   0.171   0.68
+Residuals   98  116.0  1.1841               
+
+ANOVA TukeyHSD TEST FOR: Fruits  Tukey multiple comparisons of means
+    95% family-wise confidence level
+
+Fit: aov(formula = dat.anova.log[, i] ~ factor(Site), data = dat.anova.log)
+
+$`factor(Site)`
+     diff       lwr      upr     p adj
+2-1 -0.09 -0.521891 0.341891 0.6801182
+
+------------------------------------------------------------------------
+
+ANOVA FOR: HbA1cIFCC
+
+            Df   Sum Sq   Mean Sq F value Pr(>F)
+Site         1 0.000289 0.0002890   2.463   0.1274
+Residuals   82 0.009622 0.0001173               
+16 observations deleted due to missingness
+
+ANOVA TukeyHSD TEST FOR: HbA1cIFCC  Tukey multiple comparisons of means
+    95% family-wise confidence level
+
+Fit: aov(formula = dat.anova.log[, i] ~ factor(Site), data = dat.anova.log)
+
+$`factor(Site)`
+           diff           lwr         upr     p adj
+2-1 0.003719272 -0.0009951046 0.008433649 0.1274021
+
+------------------------------------------------------------------------
+
+ANOVA FOR: IFN_gamma
+
+            Df Sum Sq Mean Sq F value   Pr(>F)    
+Site         1 0.2332 0.23318   14.65 0.000228 ***
+Residuals   98 1.5600 0.01592                     
+---
+Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+
+ANOVA TukeyHSD TEST FOR: IFN_gamma  Tukey multiple comparisons of means
+    95% family-wise confidence level
+
+Fit: aov(formula = dat.anova.log[, i] ~ factor(Site), data = dat.anova.log)
+
+$`factor(Site)`
+          diff        lwr       upr     p adj
+2-1 0.09657659 0.04650157 0.1466516 0.0002282
+
+------------------------------------------------------------------------
+
+ANOVA FOR: IL12p40
+
+            Df Sum Sq Mean Sq F value   Pr(>F)    
+Site         1 0.6786  0.6786   44.71 1.41e-09 ***
+Residuals   98 1.4876  0.0152                     
+---
+Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+
+ANOVA TukeyHSD TEST FOR: IL12p40  Tukey multiple comparisons of means
+    95% family-wise confidence level
+
+Fit: aov(formula = dat.anova.log[, i] ~ factor(Site), data = dat.anova.log)
+
+$`factor(Site)`
+        diff      lwr       upr p adj
+2-1 0.164756 0.115857 0.2136551     0
+
+------------------------------------------------------------------------
+
+ANOVA FOR: IL12p70
+
+            Df Sum Sq Mean Sq F value   Pr(>F)    
+Site         1  1.838  1.8382   71.51 2.67e-13 ***
+Residuals   98  2.519  0.0257                     
+---
+Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+
+ANOVA TukeyHSD TEST FOR: IL12p70  Tukey multiple comparisons of means
+    95% family-wise confidence level
+
+Fit: aov(formula = dat.anova.log[, i] ~ factor(Site), data = dat.anova.log)
+
+$`factor(Site)`
+         diff       lwr       upr p adj
+2-1 0.2711572 0.2075262 0.3347881     0
+
+------------------------------------------------------------------------
+
+ANOVA FOR: IL13
+
+            Df  Sum Sq  Mean Sq F value  Pr(>F)   
+Site         1 0.01313 0.013132   9.706 0.00241 **
+Residuals   98 0.13260 0.001353                   
+---
+Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+
+ANOVA TukeyHSD TEST FOR: IL13  Tukey multiple comparisons of means
+    95% family-wise confidence level
+
+Fit: aov(formula = dat.anova.log[, i] ~ factor(Site), data = dat.anova.log)
+
+$`factor(Site)`
+          diff         lwr        upr     p adj
+2-1 0.02291922 0.008319931 0.03751852 0.0024098
+
+------------------------------------------------------------------------
+
+ANOVA FOR: IL15
+
+            Df  Sum Sq  Mean Sq F value Pr(>F)
+Site         1 0.00212 0.002116   0.763  0.281
+Residuals   98 0.27185 0.002774               
+
+ANOVA TukeyHSD TEST FOR: IL15  Tukey multiple comparisons of means
+    95% family-wise confidence level
+
+Fit: aov(formula = dat.anova.log[, i] ~ factor(Site), data = dat.anova.log)
+
+$`factor(Site)`
+           diff         lwr        upr     p adj
+2-1 0.009200122 -0.01170378 0.03010403 0.28105835
+
+------------------------------------------------------------------------
+
+ANOVA FOR: IL18
+
+            Df Sum Sq Mean Sq F value  Pr(>F)    
+Site         1 0.0982 0.09815   19.24 2.9e-05 ***
+Residuals   98 0.4999 0.00510                    
+---
+Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+
+ANOVA TukeyHSD TEST FOR: IL18  Tukey multiple comparisons of means
+    95% family-wise confidence level
+
+Fit: aov(formula = dat.anova.log[, i] ~ factor(Site), data = dat.anova.log)
+
+$`factor(Site)`
+         diff        lwr        upr   p adj
+2-1 0.0626589 0.03431301 0.09100479 2.9e-05
+
+------------------------------------------------------------------------
+
+ANOVA FOR: IL1beta
+
+            Df Sum Sq Mean Sq F value Pr(>F)
+Site         1  0.204 0.20429   2.507  0.534
+Residuals   63  5.134 0.08149               
+35 observations deleted due to missingness
+
+ANOVA TukeyHSD TEST FOR: IL1beta  Tukey multiple comparisons of means
+    95% family-wise confidence level
+
+Fit: aov(formula = dat.anova.log[, i] ~ factor(Site), data = dat.anova.log)
+
+$`factor(Site)`
+          diff        lwr       upr     p adj
+2-1 -0.1122428 -0.2539046 0.0294189 0.5341804
+
+------------------------------------------------------------------------
+
+ANOVA FOR: IL4
+
+            Df  Sum Sq  Mean Sq F value   Pr(>F)    
+Site         1 0.02106 0.021057   20.67 1.56e-05 ***
+Residuals   98 0.09983 0.001019                     
+---
+Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+
+ANOVA TukeyHSD TEST FOR: IL4  Tukey multiple comparisons of means
+    95% family-wise confidence level
+
+Fit: aov(formula = dat.anova.log[, i] ~ factor(Site), data = dat.anova.log)
+
+$`factor(Site)`
+          diff        lwr        upr    p adj
+2-1 0.02902214 0.01635473 0.04168955 1.56e-05
+
+------------------------------------------------------------------------
+
+ANOVA FOR: LBP
+
+            Df  Sum Sq Mean Sq F value Pr(>F)    
+Site         1 0.07699 0.07699   328.5 <2e-16 ***
+Residuals   98 0.02297 0.00023                   
+---
+Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+
+ANOVA TukeyHSD TEST FOR: LBP  Tukey multiple comparisons of means
+    95% family-wise confidence level
+
+Fit: aov(formula = dat.anova.log[, i] ~ factor(Site), data = dat.anova.log)
+
+$`factor(Site)`
+           diff        lwr         upr p adj
+2-1 -0.05549275 -0.0615685 -0.04941699     0
+
+------------------------------------------------------------------------
+
+ANOVA FOR: MCP1
+
+            Df  Sum Sq Mean Sq F value   Pr(>F)    
+Site         1 0.01205 0.01205   26.77 1.22e-06 ***
+Residuals   98 0.04413 0.00045                     
+---
+Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+
+ANOVA TukeyHSD TEST FOR: MCP1  Tukey multiple comparisons of means
+    95% family-wise confidence level
+
+Fit: aov(formula = dat.anova.log[, i] ~ factor(Site), data = dat.anova.log)
+
+$`factor(Site)`
+          diff        lwr        upr   p adj
+2-1 0.02195831 0.01353594 0.03038067 1.2e-06
+
+------------------------------------------------------------------------
+
+ANOVA FOR: MIP1alpha
+
+            Df Sum Sq Mean Sq F value Pr(>F)  
+Site         1  0.235 0.23493    5.21 0.0248 *
+Residuals   92  4.148 0.04509                 
+---
+Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+6 observations deleted due to missingness
+
+ANOVA TukeyHSD TEST FOR: MIP1alpha  Tukey multiple comparisons of means
+    95% family-wise confidence level
+
+Fit: aov(formula = dat.anova.log[, i] ~ factor(Site), data = dat.anova.log)
+
+$`factor(Site)`
+          diff        lwr         upr     p adj
+2-1 -0.1001889 -0.1873638 -0.01301391 0.0247594
+
+------------------------------------------------------------------------
+
+ANOVA FOR: RBG
+
+            Df  Sum Sq  Mean Sq F value Pr(>F)  
+Site         1 0.00218 0.002183   3.804 0.0557 .
+Residuals   86 0.04936 0.000574                 
+---
+Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+12 observations deleted due to missingness
+
+ANOVA TukeyHSD TEST FOR: rbg  Tukey multiple comparisons of means
+    95% family-wise confidence level
+
+Fit: aov(formula = dat.anova.log[, i] ~ factor(Site), data = dat.anova.log)
+
+$`factor(Site)`
+           diff          lwr        upr     p adj
+2-1 0.009985075 -0.000192629 0.02016278 0.05573964
+
+------------------------------------------------------------------------
+
+ANOVA FOR: Seafood
+
+            Df Sum Sq Mean Sq F value Pr(>F)  
+Site         1   42.3   42.25   5.839 0.0175 *
+Residuals   98  709.1    7.24                 
+---
+Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+
+ANOVA TukeyHSD TEST FOR: Seafood  Tukey multiple comparisons of means
+    95% family-wise confidence level
+
+Fit: aov(formula = dat.anova.log[, i] ~ factor(Site), data = dat.anova.log)
+
+$`factor(Site)`
+    diff       lwr      upr    p adj
+2-1  1.3 0.2323549 2.367645 0.017528
+
+------------------------------------------------------------------------
+
+ANOVA FOR: activity_minspw_mod
+
+            Df  Sum Sq Mean Sq F value Pr(>F)
+Site         1   14161   14161   0.396  0.925
+Residuals   98 3504193   35757               
+
+ANOVA TukeyHSD TEST FOR: activity_minspw_mod  Tukey multiple comparisons of means
+    95% family-wise confidence level
+
+Fit: aov(formula = dat.anova.log[, i] ~ factor(Site), data = dat.anova.log)
+
+$`factor(Site)`
+    diff       lwr      upr     p adj
+2-1 23.8 -51.25073 98.85073 0.9250609
+
+------------------------------------------------------------------------
+
+ANOVA FOR: waist
+
+            Df Sum Sq Mean Sq F value Pr(>F)  
+Site         1   1601  1601.0   3.926 0.019 *
+Residuals   94  38333   407.8                 
+---
+Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+4 observations deleted due to missingness
+
+ANOVA TukeyHSD TEST FOR: waist  Tukey multiple comparisons of means
+    95% family-wise confidence level
+
+Fit: aov(formula = dat.anova.log[, i] ~ factor(Site), data = dat.anova.log)
+
+$`factor(Site)`
+         diff       lwr        upr     p adj
+2-1 -8.167454 -16.35192 0.01700881 0.019104683
+
+------------------------------------------------------------------------
+
+ANOVA FOR: waist_h_r
+
+            Df Sum Sq Mean Sq F value Pr(>F)  
+Site         1 0.0553 0.05534   4.588 0.0348 *
+Residuals   94 1.1338 0.01206                 
+---
+Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+4 observations deleted due to missingness
+
+ANOVA TukeyHSD TEST FOR: waist_h_r  Tukey multiple comparisons of means
+    95% family-wise confidence level
+
+Fit: aov(formula = dat.anova.log[, i] ~ factor(Site), data = dat.anova.log)
+
+$`factor(Site)`
+          diff         lwr        upr     p adj
+2-1 0.04805894 0.003508368 0.09260951 0.0347877
+
+------------------------------------------------------------------------
+
+ANOVA FOR: Smoking_cig
+
+            Df Sum Sq Mean Sq F value Pr(>F)
+Site         1      3    3.24   0.062  0.804
+Residuals   98   5150   52.55               
+
+ANOVA TukeyHSD TEST FOR: Smoking_cig  Tukey multiple comparisons of means
+    95% family-wise confidence level
+
+Fit: aov(formula = dat.anova.log[, i] ~ factor(Site), data = dat.anova.log)
+
+$`factor(Site)`
+    diff       lwr      upr     p adj
+2-1 0.36 -2.517219 3.237219 0.8044233
+
+------------------------------------------------------------------------
+
+ANOVA FOR: Sugar_drinks
+
+            Df Sum Sq Mean Sq F value Pr(>F)
+Site         1    0.0  0.0025   0.001  0.576
+Residuals   98  163.8  1.6717               
+
+ANOVA TukeyHSD TEST FOR: Sugar_drinks  Tukey multiple comparisons of means
+    95% family-wise confidence level
+
+Fit: aov(formula = dat.anova.log[, i] ~ factor(Site), data = dat.anova.log)
+
+$`factor(Site)`
+    diff        lwr       upr     p adj
+2-1 0.01 -0.5031579 0.5231579 0.57602308
+
+------------------------------------------------------------------------
+
+ANOVA FOR: Takeaway
+
+            Df Sum Sq Mean Sq F value Pr(>F)  
+Site         1   9.61    9.61   6.673 0.0113 *
+Residuals   98 141.14    1.44                 
+---
+Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+
+ANOVA TukeyHSD TEST FOR: Takeaway  Tukey multiple comparisons of means
+    95% family-wise confidence level
+
+Fit: aov(formula = dat.anova.log[, i] ~ factor(Site), data = dat.anova.log)
+
+$`factor(Site)`
+     diff       lwr        upr     p adj
+2-1 -0.62 -1.096306 -0.1436941 0.0112674
+
+------------------------------------------------------------------------
+
+ANOVA FOR: TNFalpha
+
+            Df Sum Sq Mean Sq F value   Pr(>F)    
+Site         1 0.2985 0.29850   41.65 4.18e-09 ***
+Residuals   98 0.7024 0.00717                     
+---
+Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+
+ANOVA TukeyHSD TEST FOR: TNFalpha  Tukey multiple comparisons of means
+    95% family-wise confidence level
+
+Fit: aov(formula = dat.anova.log[, i] ~ factor(Site), data = dat.anova.log)
+
+$`factor(Site)`
+         diff        lwr       upr p adj
+2-1 0.1092707 0.07566997 0.1428715     0
+
+------------------------------------------------------------------------
+
+ANOVA FOR: Vegetables
+
+            Df Sum Sq Mean Sq F value Pr(>F)
+Site         1   0.81   0.810   0.263  0.609
+Residuals   98 301.94   3.081               
+
+ANOVA TukeyHSD TEST FOR: Vegetables  Tukey multiple comparisons of means
+    95% family-wise confidence level
+
+Fit: aov(formula = dat.anova.log[, i] ~ factor(Site), data = dat.anova.log)
+
+$`factor(Site)`
+     diff        lwr       upr     p adj
+2-1 -0.18 -0.8766606 0.5166606 0.6092886
+
+------------------------------------------------------------------------
+
+ANOVA FOR: WBC
+
+            Df Sum Sq Mean Sq F value Pr(>F)
+Site         1    1.1   1.098    0.46  0.499
+Residuals   85  202.8   2.386               
+13 observations deleted due to missingness
+
+ANOVA TukeyHSD TEST FOR: WBC  Tukey multiple comparisons of means
+    95% family-wise confidence level
+
+Fit: aov(formula = dat.anova.log[, i] ~ factor(Site), data = dat.anova.log)
+
+$`factor(Site)`
+          diff        lwr       upr     p adj
+2-1 -0.2253723 -0.8860511 0.4353064 0.4994601
+
+------------------------------------------------------------------------
+
+ANOVA FOR: shannon_diversity
+
+            Df Sum Sq Mean Sq F value Pr(>F)
+Site         1   0.00 0.00014   0.001   0.061  .
+Residuals   98  21.17 0.21598               
+---
+Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+
+ANOVA TukeyHSD TEST FOR: shannon_diversity  Tukey multiple comparisons of means
+    95% family-wise confidence level
+
+Fit: aov(formula = dat.anova.log[, i] ~ factor(Site), data = dat.anova.log)
+
+$`factor(Site)`
+           diff        lwr       upr     p adj
+2-1 0.002376945 -0.1820726 0.1868265 0.06123697
+
+------------------------------------------------------------------------
+
+ANOVA FOR: shannon_evenness
+
+            Df Sum Sq  Mean Sq F value Pr(>F)
+Site         1 0.0063 0.006271   0.759  0.0273 *
+Residuals   98 0.8098 0.008263               
+---
+Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+
+ANOVA TukeyHSD TEST FOR: shannon_evenness  Tukey multiple comparisons of means
+    95% family-wise confidence level
+
+Fit: aov(formula = dat.anova.log[, i] ~ factor(Site), data = dat.anova.log)
+
+$`factor(Site)`
+          diff        lwr        upr     p adj
+2-1 0.01583734 -0.0202404 0.05191508 0.0273078
+
+------------------------------------------------------------------------
+
+ANOVA FOR: chao_richness
+
+            Df Sum Sq Mean Sq F value Pr(>F)
+Site         1      0    0.08   0.001  0.805
+Residuals   97  11511  118.67               
+1 observation deleted due to missingness
+
+ANOVA TukeyHSD TEST FOR: chao_richness  Tukey multiple comparisons of means
+    95% family-wise confidence level
+
+Fit: aov(formula = dat.anova.log[, i] ~ factor(Site), data = dat.anova.log)
+
+$`factor(Site)`
+           diff       lwr      upr     p adj
+2-1 -0.05755102 -4.403639 4.288536 0.80520866
+
+------------------------------------------------------------------------
+
