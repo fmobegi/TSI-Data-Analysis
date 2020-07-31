@@ -66,7 +66,7 @@ abundance.spp <- read.delim("yarrabah_metaphlan_counts_species.tsv", check.names
 
 ```
 
-# Explote MetaPhlan2 abundance estimates for the TSI
+# Explore MetaPhlan2 abundance estimates for the TSI
 
 We used the MicrobiomeAnalystR package to explore and visualize the taxonomic the data by Island
 This was a quick way to identify any patterns in the data before embarking on time-consuming analyses
@@ -148,7 +148,6 @@ colnames(c) <- c("pielou_evenness", "shannon_diversity", "shannon_evenness", "si
 # kable(head(c, 10))
 write.table(c, "diversity_evenness.tsv", sep = "\t", col.names = T)
 
-
 ```
 
 ### The PERMANOVA stats on this dataset 
@@ -162,6 +161,7 @@ permanova <-adonis2((abundance.in %>%
         permutations = 10000, 
         method = "bray")
 permanova
+
 ```
 Of course, there is a considerable difference in multivariate spread that could be the cause for the significant PERMANOVA  result.
 
