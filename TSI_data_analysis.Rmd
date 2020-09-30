@@ -60,13 +60,13 @@ set.seed(123)
 # Load datasets
 
 ```{r read_data}
-abundance.in <- read.delim("tsi_abundance.txt", check.names = F, sep = "\t")
-metadata <- read.delim("tsi_metadata.txt", check.names = F)
+abundance.in <- read.delim("abundance.txt", check.names = F, sep = "\t")
+metadata <- read.delim("tsi_all_data_formatted.txt", check.names = F)
 abundance.spp <- read.delim("yarrabah_metaphlan_counts_species.tsv", check.names = F, row.names = 1, header = T)# Metaphlan only species-level raw counts for Chao1
 
 ```
 
-# Explore MetaPhlan2 abundance estimates for the TSI
+# Explote MetaPhlan2 abundance estimates for the TSI
 
 We used the MicrobiomeAnalystR package to explore and visualize the taxonomic the data by Island
 This was a quick way to identify any patterns in the data before embarking on time-consuming analyses
@@ -148,6 +148,7 @@ colnames(c) <- c("pielou_evenness", "shannon_diversity", "shannon_evenness", "si
 # kable(head(c, 10))
 write.table(c, "diversity_evenness.tsv", sep = "\t", col.names = T)
 
+
 ```
 
 ### The PERMANOVA stats on this dataset 
@@ -161,7 +162,6 @@ permanova <-adonis2((abundance.in %>%
         permutations = 10000, 
         method = "bray")
 permanova
-
 ```
 Of course, there is a considerable difference in multivariate spread that could be the cause for the significant PERMANOVA  result.
 
@@ -170,7 +170,7 @@ Of course, there is a considerable difference in multivariate spread that could 
 We took the data from the above analysis and made some cute plots in R
 
 ```{r}
-df_all<- read.csv("NMDS_primer.csv", row.names = 1) ## in dropbox TSI_analysis
+df_all<- read.csv("NMDS.csv", row.names = 1) ## in dropbox TSI_analysis
 centroids_all <- aggregate(cbind(NMDS1,NMDS2)~Site,df_all,mean)
 ##Link all dots to centroid
 gg_all <- merge(df_all,aggregate(cbind(mean.X=NMDS1,mean.Y=NMDS2)~Site,df_all,mean),by="Site")
@@ -266,11 +266,7 @@ We sought to identify these patterns using Distance-based redundancy analysis in
 
 ![Spearman and CCA Figure 3](Figure 3.png)
 
-<<<<<<< HEAD
-We also cleaned the svg files generated from LEfSe and <a href="https://huttenhower.sph.harvard.edu/metaphlan" target="_blank">MetaPhlAn2</a>-<a href="https://huttenhower.sph.harvard.edu/graphlan" target="_blank">GraPhlAn</a> pipelines
-=======
-We also cleaned the svg files generated from LEfSe and <a href="https://huttenhower.sph.harvard.edu/metaphlan" target="_blank">MetaPhlAn2></a>-<a href="https://huttenhower.sph.harvard.edu/graphlan" target="_blank">GraPhlAn></a> pipelines
->>>>>>> 07cfba795f22a07f839f1dcbac79f0ce45cd8e19
+We also cleaned the svg files generated from LEfSe  and <a href="https://huttenhower.sph.harvard.edu/metaphlan" target="_blank">MetaPhlAn2</a>-<a href="https://huttenhower.sph.harvard.edu/graphlan" target="_blank">GraPhlAn</a> pipelines
 
 ![The MetaPhlAn Graphlan plot plots for this data](FigureS2.png)
 
@@ -510,6 +506,14 @@ compare.fit <- compareFit(
 ```
 
 
+```{r, echo=FALSE}
+compare.fit <- read.delim("../sem_final.tsv", check.names = F)
+compare.fit <- data.frame(lapply(compare.fit, function(x){gsub("\\*","†",x)}))
+colnames(compare.fit) <- c("", "chisq.scaled", "df.scaled", "pvalue.scaled", "cfi.robust", "tli.robust", "aic", "bic", "rmsea.robust", "srmr")
+
+```
+
+
 ## How do the models compare
 ```{r}
 compare.fit %>%
@@ -677,6 +681,6 @@ date()
   Author: <a href="https://au.linkedin.com/in/fmobegi" target="_blank">Fredrick M. Mobegi, PhD</a><br/>
   Created: 24-02-2018 Mon 0830h<br/>
   Updated: 29-07-2020 Wed 1400h<br/>
-  Copyright &copy; 2020 | This notebook is for research purposes only and use of the linked data must be accompanied with written permission. It contain embargoed data and/or links and references to embargoed data from Aboriginal and Torres Strait Islander Health Surveys in a program called the Well Persons Health Check (WPHC). In 2016, Torres and Cape Hospital and Health Service (TCHHS) collaborated with James Cook University (Zenadth Kes Health Partnership) to conduct these surveys in two Australian island communities, Waiben and Mer. Use of this data in our study was approved by the Far North Queensland Human Research Ethics Committee (HREC/16/QCH/70-1059) and received a written support from the local Community Council, Primary Health Care Service and TCHHS.<br/>For permission requests, write to the Director of <a href="https://www.sahmriresearch.org/our-research/themes/infection-immunity/our-team" target="_blank">Microbiome Research Laboratory</a> at <a href="https://www.sahmriresearch.org/" target="_blank">SAHMRI</a>.
+  Copyright &copy; 2020 | This notebook is for research purposes only and use of the linked data must be accompanied with written permission. It contain embargoed data and/or links and references to embargoed or legally privileged data from Aboriginal and Torres Strait Islander Health Surveys in a program called the Well Persons Health Check (WPHC). In 2016, Torres and Cape Hospital and Health Service (TCHHS) collaborated with James Cook University (Zenadth Kes Health Partnership) to conduct these surveys in two Australian island communities, Waiben and Mer. Use of this data in our study was approved by the Far North Queensland Human Research Ethics Committee (HREC/16/QCH/70-1059) and received a written support from the local Community Council, Primary Health Care Service and TCHHS.<br/>For permission requests, write to the Director of <a href="https://www.sahmriresearch.org/our-research/themes/infection-immunity/our-team" target="_blank">Microbiome Research Laboratory</a> at <a href="https://www.sahmriresearch.org/" target="_blank">SAHMRI</a>.
 </span><br/>
 ....................................................
