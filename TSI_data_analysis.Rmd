@@ -1,654 +1,318 @@
 ---
-title: "Intestinal microbiology shapes population health impacts of diet and lifestyle risk exposures in remote communities"
+title: "Mediation and moderation analysis using the TSI data"
+author: "F.M. Mobegi, PhD"
+date: "01/07/2019"
 output:
-  html_document:
-    toc: yes
-always_allow_html: yes
-editor_options: 
+  html_document: default
+  pdf_document: default
+editor_options:
   chunk_output_type: console
 ---
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
+#setwd("R:/CMPH-SAHMRI/Fredrick Mobegi/Yarrabah_study/mediation and interaction/")
 
 ```
 
-# Load required libraries and functions
-
-```{r libraries, warning=FALSE, message=FALSE}
-
-if (!require("pacman")) install.packages("pacman")
-pacman::p_load("knitr", "dplyr", "scales", "car", "doParallel", "ggpubr",
-               "mediation","tibble","stringr","ggplot2","psych","lavaan",
-               "semTools","ggrepel","vegan","phyloseq","FactoMineR","factoextra",
-               "gplots","corrplot","ggvegan",
-               install = TRUE)
-library("MicrobiomeAnalystR") ## cannot be installed with pacman-use Webpage for quick analysis
-
-## Change mediation function to print out up to 3 decimals for mediation
-
-trace(mediation:::print.summary.mediate, 
-      at = 11,
-      tracer = quote({
-        printCoefmat <- function(x, digits) {
-          p <- x[, 4] #p-values seem to be stored rounded
-          x[, 1:3] <- sprintf("%.5f", x[, 1:3])
-		  x[, 4] <- sprintf("%.3f", p)
-		  x[, 4] <- paste(p,gtools::stars.pval(p), sep = " ")
-          print(x, quote = FALSE, left = TRUE)
-        } 
-      }),
-      print = FALSE)
-
-## Flatten the correlation matrix from upper or lower triangle into data.frame
-
-flattenCorrMatrix <- function(cormat, pmat) {
-  ut <- upper.tri(cormat)
-  data.frame(
-    row = rownames(cormat)[row(cormat)[ut]],
-    column = rownames(cormat)[col(cormat)[ut]],
-    coeff  =(cormat)[ut],
-    p_value = pmat[ut]
-  )
-}
-
-## Seed
-set.seed(123)
-
-```
-
-# Load datasets
-
-```{r read_data}
-abundance.in <- read.delim("abundance.txt", check.names = F, sep = "\t")
-metadata <- read.delim("tsi_all_data_formatted.txt", check.names = F)
-abundance.spp <- read.delim("yarrabah_metaphlan_counts_species.tsv", check.names = F, row.names = 1, header = T)# Metaphlan only species-level raw counts for Chao1
-
-```
-
-# Explote MetaPhlan2 abundance estimates for the TSI
-
-We used the MicrobiomeAnalystR package to explore and visualize the taxonomic the data by Island
-This was a quick way to identify any patterns in the data before embarking on time-consuming analyses
-
-```{r metaphlan}
-mbSet<-Init.mbSetObj()
-mbSet<-SetModuleType(mbSet, "mdp")
-mbSet<-ReadSampleTable(mbSet, "metadata_4_beta_diversity.txt");
-mbSet<-Read16SAbundData(mbSet, "metaphlan_abundance_all.txt","text","Others/Not_specific","T");
-mbSet<-SanityCheckData(mbSet, "text");
-mbSet<-PlotLibSizeView(mbSet, "norm_species_count","png");
-mbSet<-CreatePhyloseqObj(mbSet, "text","Others/Not_specific","T")
-mbSet<-ApplyAbundanceFilter(mbSet, "prevalence", 0, 0.1);
-mbSet<-ApplyVarianceFilter(mbSet, "iqr", 0.0);
-mbSet<-PerformNormalization(mbSet, "none", "none", "none");
-mbSet<-PlotAlphaData(mbSet, "orig","alpha_diver_Chao","Chao1","location","OTU", "default", "png");
-mbSet<-PlotAlphaBoxData(mbSet, "alpha_diverbox_Chao","Chao1","location","default", "png");
-mbSet<-PerformAlphaDiversityComp(mbSet, "tt","location");
-mbSet<-PlotAlphaData(mbSet, "orig","alpha_diver_Shannon","Shannon","location","OTU", "default", "png");
-mbSet<-PlotAlphaBoxData(mbSet, "alpha_diverbox_Shannon","Shannon","location","default", "png");
-mbSet<-PerformAlphaDiversityComp(mbSet, "tt","location");
-mbSet<-PlotAlphaData(mbSet, "orig","alpha_diver_Shannon_spp","Shannon","location","Species", "default", "png");
-mbSet<-PlotAlphaBoxData(mbSet, "alpha_diverbox_Shannon_spp","Shannon","location","default", "png");
-mbSet<-PerformAlphaDiversityComp(mbSet, "tt","location");
-mbSet<-PlotAlphaData(mbSet, "orig","alpha_diver_Chao_spp","Chao1","location","Species", "default", "png");
-mbSet<-PlotAlphaBoxData(mbSet, "alpha_diverbox_Chao_spp","Chao1","location","default", "png");
-mbSet<-PerformAlphaDiversityComp(mbSet, "tt","location");
-mbSet<-PlotBetaDiversity(mbSet, "beta_diver_PCOA_spp","PCoA","bray","expfac","location","none","Species","Not_Assigned","Observed", "yes", "png", 72, "default");
-mbSet<-PlotBetaDiversity(mbSet, "beta_diver_NMDS_spp","NMDS","bray","expfac","location","none","Species","Not_Assigned","Observed", "yes", "png", 72, "default");
-
-```
-
-![Raw NMDS Fig on first attempt in MicrobiomeAnalysitR](beta_diver_NMDS_spp.png)
-
-## Diversity and Richness using vegan package in R
-
-```{r diversity}
-abundance <- column_to_rownames(abundance.in, var = "ID")
-abundance <- abundance[!(apply(abundance, 1, function(y) all(y == 0.000))),] %>% 
-  round(., 4) %>% sweep(., 1, rowSums(abundance), '/')
-spp.m <- data.matrix(abundance)
-
-## Shannon diversity must define that its the diversity function from vegan to be used
-shanno_vegan <- as.data.frame(vegan::diversity(spp.m, index = "shannon", MARGIN = 1, base = exp(1)))%>%
-  rownames_to_column(var = "Species")
-
-## Shannon evenness
-x <- as.data.frame(t(spp.m))
-x$taxonomy <- rownames(x)
-
-## library(RAM)
-shannon_evenness <- data.frame(RAM::evenness(data=list(x=x), index="shannon"), check.names=FALSE) 
-shannon_evenness <- as.data.frame(t(shannon_evenness)) %>%
-  rownames_to_column(var = "Species")
-# colnames(shannon_evenness) <- gsub("^X", "",  colnames(shannon_evenness))
-## Chao1 species richness
-chao1 <- data.frame(estimateR(abundance.spp))
-chao1 <- as.data.frame(t(chao1)) %>% 
-  rownames_to_column(var = "Species")
-chao1 <- chao1[1:2]
-
-## Simpson species diversity
-simpson_vegan <- as.data.frame(vegan::diversity(spp.m, index = "simpson", MARGIN = 1, base = exp(1)))%>% 
-  rownames_to_column(var = "Species")
-
-## Pielou's evenness
-pielou <- data.frame(vegan::diversity(spp.m, index = "shannon", MARGIN = 1, base = exp(1))/log(specnumber(spp.m)))%>%
-  rownames_to_column(var = "Species")
-
-## Bray-Curtis dissimilarity index
-bray <- vegan::vegdist(t(spp.m), method = "bray", na.rm = T)
-m <- data.frame(t(combn(colnames(spp.m),2)), as.numeric(bray))
-names(m) <- c("c1", "c2", "bray_distance")
-write.table(m, "bray_curtisMatrix.tsv", sep = "\t", row.names = F)
-
-## Combine Alpha Measure
-c <- plyr::join_all(list(pielou, shanno_vegan, shannon_evenness, simpson_vegan, chao1), by = "Species", type='left')
-colnames(c) <- c("pielou_evenness", "shannon_diversity", "shannon_evenness", "simpson_diversity", "chao_richness")
-# kable(head(c, 10))
-write.table(c, "diversity_evenness.tsv", sep = "\t", col.names = T)
-
-
-```
-
-### The PERMANOVA stats on this dataset 
-
+#### Load required packages
 ```{r}
-md <- subset(metadata, select = c("ID", "Site")) %>% `rownames<-` (NULL) %>% tibble::column_to_rownames(.,var = "ID")
-permanova <-adonis2((abundance.in %>%
-           tibble::column_to_rownames(.,var = "ID") %>%
-              t()) ~ Site, 
-        data = md, 
-        permutations = 10000, 
-        method = "bray")
-permanova
+library("mediation")
+library("dplyr")
+library("stringr")
+
 ```
-Of course, there is a considerable difference in multivariate spread that could be the cause for the significant PERMANOVA  result.
 
-### The NMDS plot needed some work!
-
-We took the data from the above analysis and made some cute plots in R
-
+#### Data preparation
 ```{r}
-df_all<- read.csv("NMDS.csv", row.names = 1) ## in dropbox TSI_analysis
-centroids_all <- aggregate(cbind(NMDS1,NMDS2)~Site,df_all,mean)
-##Link all dots to centroid
-gg_all <- merge(df_all,aggregate(cbind(mean.X=NMDS1,mean.Y=NMDS2)~Site,df_all,mean),by="Site")
-##PLOTS
-#Test - With dots and lines
-ggplot(data=gg_all, mapping=aes(NMDS1,NMDS2,color=factor(Site)))+
-  geom_point(size=1.5)+
-  stat_ellipse(aes(NMDS1,NMDS2,color=factor(Site)),type = "norm")#+
-  geom_segment(aes(mean.X, mean.Y, xend=NMDS1, yend=NMDS2))
+abundance <- read.delim("abundance.txt", check.names = F, sep = "\t", row.names = 1)
 
-#With dots, lines, removed background, axis lines (http://docs.ggplot2.org/dev/vignettes/themes.html)
-cols_DF <- c('#00007fff','#94631eff')
-(all<- ggplot(data=gg_all, mapping=aes(NMDS1,NMDS2,color=factor(Site), fill = factor(Site))) + 
-    theme_linedraw()+
-    stat_ellipse(aes(NMDS1,NMDS2, color=factor(Site)), geom = "polygon", alpha = 1/8, type = "norm", linetype = 2, size = 0.5)+
-    geom_vline(xintercept = 0, colour="darkgrey", linetype = 2) +
-    geom_hline(yintercept = 0, colour="darkgrey", linetype = 2) +
-    theme(axis.title = element_text(size=16),
-          legend.title = element_text(size = 16),
-          axis.text = element_blank(),
-          axis.ticks = element_blank()) +
-    geom_point(size=3) +
-    scale_color_manual(name = "Site",values=c('#00007fff','#94631eff')) +
-    scale_fill_manual(name = "Site", values=c('#00007fff','#94631eff')) + 
-    theme_bw())
-
-ggsave(all, filename = "NMDS.svg", height = 8, width = 10)
-
-```
-
-After some parameter fine-tuning (see manuscript M&M for exact final parameters) in R and beautification in GraphPad prism7 or Adobe Illustrator, the a) $\alpha$ diversity on unfiltered species data and b) $\beta$ diversity on filtered data looked like this:
-
-![Original Figure 1 NMDS](Figure 1 - NMDS.png)
-
-![Original Figure 1 PCoA](Figure 1-PCoA.png)
-
-P-Values in $\alpha$-diversity are ANOVA derived (See ANOVA below)
-
-These data was also augmeneted with some Spearman correlations between metadata and species relative abundances
-
-# Canonical correspondence analysis
-
-The species abundance and metadata were used to perform CCA for each island
-
-```{r eval=FALSE}
-abundance <- abundance.spp[!(apply(abundance.spp, 1, function(y) all(y == 0.000))),]
-abundance <- round(abundance, 4)
-abundance <- abundance[rowSums(abundance == 0) <= 70, ]
-abundance <- sweep(abundance, 1, rowSums(abundance), '/')
-
-meta <- meta[,c(1,2,6,12,13,15:19)]
-names <- paste0(substr(rownames(abundance), 0, 1), ". ",stringr::word(rownames(abundance),2,-1,sep = "\\_"))
-x_nms <- rownames(abundance)
-for (i in 1:length(names)){
-  print(paste0(i," ", names[i]))
-  if (grepl("unclass",names[i])){
-    names[[i]] <- paste0((stringr::word(x_nms[[i]],1,sep = "\\_")),"*")
-  }
-}
-rownames(abundance) <- names
-
-tsi_ccpna <- cca(X = t(abundance),Y = meta)
-permutest(tsi_ccpna, permutations = 9999,model = "reduced", alpha =0.05)
-anova(tsi_ccpna, perm.max=9999, alpha =0.05, beta = 0.01)
-
-plot.new()
-# svg("CCA_combined.svg", height = 7, width = 14)
-par(mfrow=c(1,2))
-##sites
-plot(tsi_ccpna,choices=c(1,2),display=c("wa","bp"),type="points",scaling="species", col = "black",
-     xlim=c(-4,4),ylim=c(-4,4),
-     main = "", cex.lab=1.6,cex.axis=1.5, cex.sub=1.8, pch=19, cex = 2)
-points(tsi_ccpna,disp="sites",pch=20, col= rev(colvec[as.factor(x$study_site)]),cex=1.3, scaling="species")
-legend("topleft",title="Island", legend=levels(as.factor(x$study_site)), bty="n",col=colvec,pch=21,pt.bg=colvec,cex = 1.8)
-##species
-plot(tsi_ccpna,choices=c(1,2),display= "species", type="points",scaling="none",
-     xlim=c(-4,4),ylim=c(-4,4), col="grey",
-     main = "", cex.lab=1.6,cex.axis=1.5, cex.sub=1.8, pch=19, ylab = "")
-points(tsi_ccpna,disp="species",pch=20, col="grey2",bg = "grey2", cex=1.3, scaling="sites")
-text(tsi_ccpna,"species",pos=2,axis.bp=TRUE, cex=1, scaling="none", col="black", font = 1.5)
-
-dev.off()
-
-```
-
-After some manual cleaning!
-
-![CCA PLOT](CCA_combined.png)
-
-We sought to identify these patterns using Distance-based redundancy analysis in PRIMER7
-
-![](dbRDA_species_sites.png)
-
-![Spearman and CCA Figure 3](Figure 3.png)
-
-We also cleaned the svg files generated from LEfSe  and <a href="https://huttenhower.sph.harvard.edu/metaphlan" target="_blank">MetaPhlAn2</a>-<a href="https://huttenhower.sph.harvard.edu/graphlan" target="_blank">GraPhlAn</a> pipelines
-
-![The MetaPhlAn Graphlan plot plots for this data](FigureS2.png)
-
-![BY ISLAND](Figure S3-lefse clado separated by island.png)
-
-![LEfSe  plot for this data](Lefse species.png)
-
-# Metadata exploration
-## Normality test on the metadata
-Shapiro-Wilk test is normally recommend as the best choice for omnibus testing of data normality. `https://www.ncbi.nlm.nih.gov/pmc/articles/PMC3693611/`. This test is more powerful than Lillifors, Kolmogorov-Smirnove, Anderson-Darling and other tests for small data-size. If the test is significant, the distribution is non-normal.
-For extrmely small sample sizes (e.g. n<10), the following steps may help in detecting outliers:
-1. Fit the model (e.g. non-linear) to the raw data.
-2. Test residuals for normality with appropriate robust test (e.g. Shapiro-Wilk test).
-3. If residuals are normal, use parametric bootstrapping to estimate model parameter confidence intervals. If not, use nonparametric bootstrapping.
-
-NB: D'Agostino-Pearson ($K^{2}$) test has very poor power against (graphically and statistically non-normal) data whose skewness and kurtosis are similar to those of a normally distributed data.
-
-```{r normalist, dpi = 200}
-data.shapiro <- column_to_rownames(metadata, var = "ID")
-
-data.shapiro.sub <- subset(data.shapiro, select = !(grepl("SML", names(data.shapiro))))
-data.shapiro.sub <- subset(data.shapiro.sub, select = !names(data.shapiro.sub) %in% 
-                             c("Hypertension", "aPHQ9", "dbp","Diabetes", "Gender","simpson_diversity","pielou_evenness" ))
-colnames <- dimnames(data.shapiro.sub)[[2]]
-
-par(mfrow=c(2, 3))
-for (i in 1:ncol(data.shapiro.sub)) {
-    df <- as.vector(na.omit(data.shapiro.sub[,i]))
-    p <- round(shapiro.test(df)$p.value, digits = 4)
-    w <- round(shapiro.test(df)$statistic[[1]][1], digits = 4)
-    hist(df,  main=paste0("ID=",colnames[i],"; n=",length(df),"\nShapiro-Wilk:\n[p-value=",p,"; W=",w,"]"), probability=TRUE, col="gray", border="white")
-    lines(density(df), lwd = 2, col = "chocolate3")
-}
-
-```
-
-```{r include=F}
-dev.off()
-
-#library(purrr)
-# (dat.anova.log %>% split(.$Site) %>% map(summary))
-dat.descr.non.transformed <- round(psych::describe(data.shapiro.sub, IQR = T), digits = 2)
-tibble(dat.descr.non.transformed)
-
-```
-
-Based on this analysis, we've observed that some observations will need to be log transformed before any subsequence analysis.
-The histograms also allow us to make decisions on the skewness and kurtosis of the data independednt of the Shapiro-Wilk p-value
-
-## Anova, ancova, and Mann-Whitney U test
-### ANOVA
-
-```{r anova}
-dat.anova <- data.shapiro.sub
-
-## Biomarkers data to be transformed..
-trans.biomark <- c("rbg","TNFalpha","CRP","HbA1cIFCC","IFN_gamma","IL10","IL12p40","IL12p70","IL13","IL15","IL17A","IL18","IL1beta","IL2","IL33","IL4","IL5","IL6","LBP","MCP1","MIP1alpha")
-dat.anova[trans.biomark] <- lapply(dat.anova[trans.biomark],function(p) {log10(p+1)}) ##log biomarkers not normally distributed..
-dat.anova.log <- do.call(data.frame,lapply(dat.anova, function(x) replace(x, is.infinite(x),NA)))
-
-dat.descr.all <- round(psych::describe(dat.anova.log, IQR = T), digits = 2)
-dat.descr.site <- psych::describeBy(dat.anova.log, dat.anova.log$Site, IQR = T)
-dat.descr.site.df <- round(cbind(dat.descr.site$`1`, dat.descr.site$`2`), digits = 3)
-
-# write.table(dat.descr.all, "results/metadata_stats.tsv", sep = "\t")
-# write.table(dat.descr.site.df, "results/metadata_stats_by_site.tsv", sep = "\t")
-
-AVz <- rep(NA, ncol(dat.anova.log))
-# sink("Anova_unadjusted.doc")
-for (i in 1:ncol(dat.anova.log)){
-  column <- names(dat.anova.log[i])
-  AVz <- summary(aov(dat.anova.log[,i] ~ Site, data = dat.anova.log))
-  tk <- TukeyHSD((aov(dat.anova.log[,i] ~ factor(Site), data = dat.anova.log)))
-  cat(paste0("ANOVA FOR: ",column,"\n\n"))
-  print(AVz)
-  cat(paste0("\nANOVA TukeyHSD TEST FOR: ",column))
-  print(tk)
-  cat("------------------------------------------------------------------------\n\n")
-}
-# sink()
-
-```
-
-### ANCOVA
-
-Analysis was performed with adjustment for AGE
-
-```{r ancova}
-# Analysis of Covariance
-## fit <- aov(y ~ A + x, data=mydataframe)
-
-AVz <- rep(NA, ncol(dat.anova.log))
-sink("Ancova_adjusted_for_age_site.doc")
-for (i in 1:ncol(dat.anova.log)){
-  column <- names(dat.anova.log[i])
-  AVz <- summary(aov(dat.anova.log[,i] ~ Site*Age, data = dat.anova.log))
-  cat(paste0("ANCOVA FOR: ",column,"\n\n"))
-  print(AVz)
-  cat("------------------------------------------------------------------------\n\n")
-}
-sink()
-
-```
-
-### Mann-Whiteney Test
-
-```{r mann-whiteney, eval=FALSE}
-df <- data.frame(t(dat.anova.log), check.names = F)
-pval_Utest <- data.table::as.data.table(apply(df, 1, function(x) {
-    wilcox.test(x[1:50], x[51:100])$p.value}))
-
-pval_Utest$ID <- rownames(df)
-# write.table(pval_Utest, "man_whitney.tsv", sep = "\t")
-
-```
-
-# Basic Exploratory Factor Analysis (EFA)
-```{r, warning=FALSE}
-df <- dat.anova
-dat.efa <- data.frame(scale(df, center=TRUE, scale=TRUE))
-# psych::describe(dat.efa)
-
-fa.parallel(x=dat.efa, fm="minres", fa="fa", main = "Minimal residual-MINRES") ## estimate number of factors to use in next step
-scree(dat.efa)
-
-EFA.result <- factanal(~ ., data = dat.efa, 
-                       factors=8,
-                       rotation="varimax", 
-                       na.action=na.exclude, 
-                       scores = "regression", warnings = F) #note the formula specification allows NA
-
-loadings_efa <- data.frame(EFA.result$scores)
-# print(EFA.result$loadings, cutoff=0.32)
-# write.table(loadings_efa, "EFA_matrix.tsv", sep = '\t')
-
-```
-
-# Structural Equation Modelling (SEM)
-
-__Structural equation modeling (SEM)__ is a form of causal modeling. It is a __multivariate__ statistical analysis technique that is used to analyze __structural relationships__.  This technique is the __combination__ of __factor analysis__ and __multiple regression analysis__, and it is used to analyze the structural relationship between __measured variables__ and __latent constructs__.  This method is preferred by the researcher because it __estimates__ the __multiple and interrelated dependence__ in a __single analysis__.  In this analysis, two types of variables are used: __endogenous variables__ and __exogenous variables__.  __Endogenous variables__ are equivalent to __dependent variables__ and are equal to the __independent variable__. Read more [here](https://www.statisticssolutions.com/structural-equation-modeling/) and [here](http://lavaan.ugent.be/tutorial/est.html).
-
-## Confirmatory Factor Analysis
-A usual methodology for model evaluation is Confirmatory Factor Analysis (CFA) that is a particular case of SEM. It is a process which consists in specifying quantity and kinds of observed variables to one or more latent variables and analyze how well those variables measure the latent variable itself. Think of a latent variable as an artificial variable that is represented as a linear combination of observed variables.
-
-## Using Lavaan to obtain parameters estimates
-Compared to AMOS and Stata, R `lavaan` is quite flexible. Read more <a href="https://www.r-bloggers.com/structural-equation-modelling-in-r-part-2/" target="_blank">[here]</a>.
-
-## SEM in LAVAAN
-We defined four related theoretical scenarios and modelled them in SEM to predict interrelationships between exposures, the microbiome and host inflammation.
-
-- Framework 1: the gut microbiome mediates the exposure-inflammation relationship 
-- Framework 2: the gut microbiome influences pathophysiology but is not influenced by risk exposures
-- Framework 3: the gut microbiome is influenced by exposures but does not influence pathophysiology
-- Framework 4: exposure risk factors are associated with inflammatory profile, and inflammatory profile predicts gut microbiome composition.
-
-These models were fittet in SEM using `MLR`: maximum likelihood estimation with robust (Huber-White) standard errors and bootstrapping (asymptotically equaivalent to the Yuan-Bentler test statistic) to account for data non-normality, presence of dichotomous and categorical variables, and correction for multiple hypothesis testing
-
-```{r, message=F, warning=FALSE}
-df <- column_to_rownames(metadata, var = "ID")
-dat.sem.std <- data.frame(scale(df, center=TRUE, scale=TRUE))
-
-model1 <-'
-  # define latent variables
-    IBF1 =~ IL4 + TNFalpha + IL12p70
-    IBF2 =~ CRP + IL18 + IL12p40 + MCP1
-    IBF3 =~ IL13 + IL15 + IFN_gamma + IL1beta
-  # regressions
-    SML1 ~ Age + Gender + Site + Fruits + Vegetables + Takeaway + Sugar_drinks + Seafood + Smoking_cig + Alcohol
-    SML2 ~ Age + Gender + Site + Fruits + Vegetables + Takeaway + Sugar_drinks + Seafood + Smoking_cig + Alcohol
-    SML3 ~ Age + Gender + Site + Fruits + Vegetables + Takeaway + Sugar_drinks + Seafood + Smoking_cig + Alcohol
-    SML4 ~ Age + Gender + Site + Fruits + Vegetables + Takeaway + Sugar_drinks + Seafood + Smoking_cig + Alcohol
-    SML5 ~ Age + Gender + Site + Fruits + Vegetables + Takeaway + Sugar_drinks + Seafood + Smoking_cig + Alcohol
-    SML6 ~ Age + Gender + Site + Fruits + Vegetables + Takeaway + Sugar_drinks + Seafood + Smoking_cig + Alcohol
-    IBF1 ~ Age + Gender + Site + SML1+ SML2 + SML3 +SML6 + SML4 + SML5 + Fruits + Vegetables + Takeaway + Sugar_drinks + Seafood + Smoking_cig + Alcohol
-    IBF2 ~ Age + Gender + Site + SML1+ SML2 +SML3 + SML6 + SML4 + SML5 + Fruits + Vegetables + Takeaway + Sugar_drinks + Seafood + Smoking_cig + Alcohol    
-    IBF3 ~ Age + Gender + Site + SML1+ SML2 +SML3 + SML6 + SML4 + SML5 + Fruits + Vegetables + Takeaway + Sugar_drinks + Seafood + Smoking_cig + Alcohol
-'
-
-model2 <-'
-  # define latent variables
-    IBF1 =~ IL4 + TNFalpha + IL12p70
-    IBF2 =~ CRP + IL18 + IL12p40 + MCP1
-    IBF3 =~ IL13 + IL15 + IFN_gamma + IL1beta
-  # regressions
-    IBF1 ~ Age  + Gender + Site + SML1+ SML2 +SML3 + SML6 + SML4 + SML5 + Fruits + Vegetables + Takeaway + Sugar_drinks + Seafood + Smoking_cig + Alcohol
-    IBF2 ~ Age  + Gender + Site + SML1+ SML2 +SML3 + SML6 + SML4 + SML5 + Fruits + Vegetables + Takeaway + Sugar_drinks + Seafood + Smoking_cig + Alcohol
-    IBF3 ~ Age  + Gender + Site + SML1+ SML2 +SML3 + SML6 + SML4 + SML5 + Fruits + Vegetables + Takeaway + Sugar_drinks + Seafood + Smoking_cig + Alcohol
-'
-
-model3 <-'
-  # define latent variables
-    IBF1 =~ IL4 + TNFalpha + IL12p70
-    IBF2 =~ CRP + IL18 + IL12p40 + MCP1
-    IBF3 =~ IL13 + IL15 + IFN_gamma + IL1beta
-  # regressions
-    SML1 ~ Age  + Gender + Site + Fruits + Vegetables + Takeaway + Sugar_drinks + Seafood + Smoking_cig + Alcohol 
-    SML2 ~ Age  + Gender + Site + Fruits + Vegetables + Takeaway + Sugar_drinks + Seafood + Smoking_cig + Alcohol
-    SML3 ~ Age  + Gender + Site + Fruits + Vegetables + Takeaway + Sugar_drinks + Seafood + Smoking_cig + Alcohol
-    SML6 ~ Age  + Gender + Site + Fruits + Vegetables + Takeaway + Sugar_drinks + Seafood + Smoking_cig + Alcohol
-    SML4 ~ Age  + Gender + Site + Fruits + Vegetables + Takeaway + Sugar_drinks + Seafood + Smoking_cig + Alcohol
-    SML5 ~ Age  + Gender + Site + Fruits + Vegetables + Takeaway + Sugar_drinks + Seafood + Smoking_cig + Alcohol
-    IBF1 ~ Age  + Gender + Site + Fruits + Vegetables + Takeaway + Sugar_drinks + Seafood + Smoking_cig + Alcohol
-    IBF2 ~ Age  + Gender + Site + Fruits + Vegetables + Takeaway + Sugar_drinks + Seafood + Smoking_cig + Alcohol
-    IBF3 ~ Age  + Gender + Site + Fruits + Vegetables + Takeaway + Sugar_drinks + Seafood + Smoking_cig + Alcohol
-'
-
-model4 <-'
-  # define latent variables
-    IBF1 =~ IL4 + TNFalpha + IL12p70
-    IBF2 =~ CRP + IL18 + IL12p40 + MCP1
-    IBF3 =~ IL13 + IL15 + IFN_gamma + IL1beta
-  # regressions
-    SML1 ~ Age  + Gender + Site + Fruits + Vegetables + Takeaway + Sugar_drinks + Seafood + Smoking_cig + Alcohol + IBF1 + IBF2 + IBF3
-    SML2 ~ Age  + Gender + Site + Fruits + Vegetables + Takeaway + Sugar_drinks + Seafood + Smoking_cig + Alcohol + IBF1 + IBF2 + IBF3
-    SML3 ~ Age  + Gender + Site + Fruits + Vegetables + Takeaway + Sugar_drinks + Seafood + Smoking_cig + Alcohol + IBF1 + IBF2 + IBF3
-    SML6 ~ Age  + Gender + Site + Fruits + Vegetables + Takeaway + Sugar_drinks + Seafood + Smoking_cig + Alcohol + IBF1 + IBF2 + IBF3
-    SML4 ~ Age  + Gender + Site + Fruits + Vegetables + Takeaway + Sugar_drinks + Seafood + Smoking_cig + Alcohol + IBF1 + IBF2 + IBF3
-    SML5 ~ Age  + Gender + Site + Fruits + Vegetables + Takeaway + Sugar_drinks + Seafood + Smoking_cig + Alcohol + IBF1 + IBF2 + IBF3
-    IBF1 ~ Age  + Gender + Site + Fruits + Vegetables + Takeaway + Sugar_drinks + Seafood + Smoking_cig + Alcohol
-    IBF2 ~ Age  + Gender + Site + Fruits + Vegetables + Takeaway + Sugar_drinks + Seafood + Smoking_cig + Alcohol
-    IBF3 ~ Age  + Gender + Site + Fruits + Vegetables + Takeaway + Sugar_drinks + Seafood + Smoking_cig + Alcohol
-'
-
-fit.model1 <- sem(model = model1, dat.sem.std, estimator = "MLR", test = "bootstrap", likelihood = "wishart", se="robust.huber.white")
-fit.model2 <- sem(model = model2, dat.sem.std, estimator = "MLR", test = "bootstrap", likelihood = "wishart", se="robust.huber.white")
-fit.model3 <- sem(model = model3, dat.sem.std, estimator = "MLR", test = "bootstrap", likelihood = "wishart", se="robust.huber.white")
-fit.model4 <- sem(model = model4, dat.sem.std, estimator = "MLR", test = "bootstrap", likelihood = "wishart", se="robust.huber.white")
-
-compare.fit <- compareFit(
-  fit.model1,
-  fit.model2,
-  fit.model3,
-  fit.model4,
-  nested=F,
-  argsLRT=list(asymptotic=F))
-
-```
-
-
-```{r, echo=FALSE}
-compare.fit <- read.delim("../sem_final.tsv", check.names = F)
-compare.fit <- data.frame(lapply(compare.fit, function(x){gsub("\\*","†",x)}))
-colnames(compare.fit) <- c("", "chisq.scaled", "df.scaled", "pvalue.scaled", "cfi.robust", "tli.robust", "aic", "bic", "rmsea.robust", "srmr")
-
-```
-
-
-## How do the models compare
-```{r}
-compare.fit %>%
-  kableExtra::kable() %>%
-    kableExtra::kable_styling(bootstrap_options = c("striped", "hover", "condensed"))
-
-```
-
-## Plot the SEM best model as heatmaps
-
-```{r plotSEM, dpi=300}
-################## Heatmap exposures vs pathophysiology
-parameter.estimates.df <- data.frame(parameterEstimates(fit.model1, standardized=TRUE) %>% 
-    # filter(op == "=~" | op == "~") %>%
-    dplyr::select('Latent.Factor'=lhs, Indicator=rhs, B=est, SE=se, Z=z, P=pvalue, Beta=std.all) %>% 
-    # filter(P <= 0.1)%>%
-    filter(grepl("SML",Latent.Factor))%>%
-    filter(!grepl("SML",Indicator))%>%
-    arrange(P) %>% na.omit())
-
-parameter.estimates.df$Beta <- round(parameter.estimates.df$Beta, digits = 2)
-parameter.estimates.df$Beta1 <- ifelse(parameter.estimates.df$Beta<0.1& parameter.estimates.df$Beta>-0.1, 0 , parameter.estimates.df$Beta) ## scale everything below 0.1
-parameter.estimates.df$P <- round(parameter.estimates.df$P, digits = 4)
-parameter.estimates.df$pvalue=car::Recode(parameter.estimates.df$P, "lo:0.001 = '***'; 0.001:0.05 = '**'; 0.05:0.1 = '*'; else = ' ';")
-parameter.estimates.df <- parameter.estimates.df[,-c(3:6)]
-parameter.estimates.df$Latent.Factor <- factor(parameter.estimates.df$Latent.Factor, 
-                                               levels = rev(c("SML1","SML2","SML3","SML4","SML5","SML6")))
-parameter.estimates.df$Indicator <- factor(parameter.estimates.df$Indicator, 
-                       levels = c("Age","BMI","Gender","Site","Fruits","Vegetables","Takeaway",
-                                      "Sugar_drinks","Seafood","Smoking_cig","Alcohol"))
-
-patho <- c("IBF1","IBF2", "IBF3")
-
-parameter.estimate.patho <- data.frame(parameterEstimates(fit.model1, standardized=TRUE) %>% 
-    # filter(op == "=~" | op == "~") %>%
-    dplyr::select('Latent.Factor'=lhs, Indicator=rhs, B=est, SE=se, Z=z, P=pvalue, Beta=std.all) %>% 
-    # filter(P <= 0.1)%>%
-    subset(Latent.Factor  %in% patho)%>%
-    filter(!grepl("SML",Indicator))%>%
-    subset(!(Indicator %in% patho))%>%  
-    arrange(P) %>% na.omit())
-
-parameter.estimate.patho$Beta <- round(parameter.estimate.patho$Beta, digits = 2)
-parameter.estimate.patho$Beta1 <- ifelse(parameter.estimate.patho$Beta<0.1& parameter.estimate.patho$Beta>-0.1, 0 , parameter.estimate.patho$Beta)
-parameter.estimate.patho$P <- round(parameter.estimate.patho$P, digits = 4)
-parameter.estimate.patho$pvalue=car::Recode(parameter.estimate.patho$P, "lo:0.001 = '***'; 0.001:0.05 = '**'; 0.05:0.1 = '*'; else = ' ';")
-parameter.estimate.patho <- parameter.estimate.patho[,-c(3:6)]
-parameter.estimate.patho$Latent.Factor <- factor(parameter.estimate.patho$Latent.Factor, levels = rev(c("IBF1","IBF2", "IBF3")))
-parameter.estimate.patho$Indicator <- factor(parameter.estimate.patho$Indicator, 
-                       levels = c("Age","BMI","Gender","Site","Fruits","Vegetables","Takeaway",
-                                      "Sugar_drinks","Seafood","Smoking_cig","Alcohol"))
-
-ggplot(rbind(parameter.estimates.df,na.omit(parameter.estimate.patho)), aes(y=Latent.Factor,x=Indicator, fill = Beta)) + 
-  geom_tile(aes(fill = Beta,width=.95, height=.95),colour = "white") +
-  # geom_text(size = 10, aes(label = as.character(pvalue), vjust = 0.5)) +
-  theme_bw() +
-  scale_fill_gradient2(low = "red2", mid = "white", high = "darkgreen", 
-                       midpoint = 0, space = "Lab", name="Standardized\nestimates\n(Beta)",
-                       breaks = c(1,0.5, 0, -0.5, -1), limits = c(-1,1)) +
-  xlab(NULL) + 
-  ylab(NULL) + 
-  theme(#axis.text.x=element_blank(),
-        #axis.text.y=element_blank(),
-        legend.text = element_text(size = 12),
-        axis.ticks=element_blank(),
-        panel.border=element_blank())+guides(fill = guide_legend(title.position = "top"))
-
-```
-
-And the latents for Biomarker Factors 1-3
-
-![](../Latents_SEM.png)
-
-# Mediation analysis
-
-```{r mediation, eval=FALSE}
-abundance <- abundance.in %>% column_to_rownames(.,var = "ID")
-abundance <- abundance[rowSums(abundance < 0.01) <= 60, ]## greater than 0.01 relab in 40% of the samples
+abundance <- abundance[rowSums(abundance <= 0.01) <= 70, ]## greater than 0.01 relab in 30% of the samples
 abundance <- sweep(abundance, 1, rowSums(abundance), '/')## rescale relative abundance to add up to 1 across all samples
 abundance <- t(abundance)
+# abundance <- subset(abundance, select = as.vector(rem))
 abundance <- tibble::rownames_to_column(as.data.frame(abundance), var = "ID")
 
+metadata <- read.delim("tsi_all_data_formatted.txt", check.names = F, header = T, sep = "\t")
 dat <- left_join(metadata, abundance, by = "ID")
-## Biomarkers data that was transformed..
-trans.biomark <- c("rbg","TNFalpha","CRP","HbA1cIFCC","IFN_gamma","IL10","IL12p40","IL12p70","IL13","IL15","IL17A","IL18","IL1beta","IL2","IL33","IL4","IL5","IL6","LBP","MCP1","MIP1alpha")
-dat[trans.biomark] <- lapply(dat[trans.biomark],function(p) {log10(p+1)}) ##log biomarkers not normally distributed..
+## Biomarkers data that was transformed.
+trans.biomark <- c("rbg","TNFalpha","CRP","HbA1cIFCC","IFN_gamma","IL10","IL12p40","IL12p70","IL13","IL15","IL17A",
+                   "IL18","IL1beta","IL2","IL33","IL4","IL5","IL6","LBP","MCP1","MIP1alpha")
 
-outcomes <- c("BMI","waist_h_r","dbp","rbg","sbp","Hypertension","Diabetes","TNFalpha","CRP","HbA1cIFCC","IFN_gamma","IL10","IL12p40","IL12p70","IL13","IL15","IL17A","IL18","IL1beta","IL2","IL33","IL4","IL5","IL6","LBP","MCP1","MIP1alpha", "MAP")
+## Log transform biomarkers
+dat[trans.biomark] <- lapply(dat[trans.biomark],function(p) {log10(p + 1)}) ##log biomarkers not normally distributed.
+
+##log transform bacteria
+##arcsine transform bacteria
+dat.arc <- dat ### arcsine transformation (also called the arcsine square root transformation, or the angular transformation)
+dat.log <- dat ### log transform
+dat.presAbs <- dat ##presence absence bacteria
+
+dat.arc[,47:ncol(dat.arc)] <- lapply((dat.arc[,47:ncol(dat.arc)]),function(p) {asin(sqrt(p))})
+dat.log[,47:ncol(dat.log)] <- lapply((dat.log[,47:ncol(dat.log)]),function(p) {log10(p + 1)})
+dat.presAbs[,47:ncol(dat.presAbs)] <- lapply((dat.presAbs[,47:ncol(dat.presAbs)]),function(p) {ifelse(p > 0,1,0)})
+
+########## select variables to be used as exposures and outcomes #################
+outcomes <- c("BMI","waist_h_r","dbp","rbg","sbp","Hypertension","Diabetes","TNFalpha","CRP","HbA1cIFCC","IFN_gamma",
+              "IL10","IL12p40","IL12p70","IL13","IL15","IL17A","IL18","IL1beta","IL2","IL33","IL4","IL6","LBP",
+              "MCP1","MIP1alpha", "MAP")
+
 exposures <- c("Age","Fruits","Seafood","Gender","Smoking_cig","Sugar_drinks","Takeaway","Vegetables","Alcohol","Site")
 
-##arcsine transform bacteria
+```
 
-dat.arc <- dat ### arcsine transformation (also called the arcsine square root transformation, or the angular transformation)
-dat.arc[,55:ncol(dat.arc)] <- lapply((dat.arc[,55:ncol(dat.arc)]),function(p) { asin(sqrt(p))})
+#### genus mediations analysis
+```{r}
+genus <- read.delim("../processing files/metaphlan/merged_yar_all_metaphlan_genus.txt", header = T, 
+                    check.names = F, sep = "\t", row.names = 1)
+genus <- genus[rowSums(genus < 0.01) <= 70, ]
+genus <- sweep(genus, 1, rowSums(genus), '/')## rescale relative genus to add up to 1 across all samples
+genus <- t(genus)
+genus <- tibble::rownames_to_column(as.data.frame(genus), var = "ID")
 
-#-----------------------MULTIPROCESS---------------------------------
+## Test normalist of Methanobrevibacter
+# df <- as.numeric(na.omit(genus[,1]))
+# p <- round(shapiro.test(df)$p.value, digits = 4)
+# w <- round(shapiro.test(df)$statistic[[1]][1], digits = 4)
+# hist(df,  main=paste0("metahobrevibacter", "\nShapiro-Wilk [p=",p,"; W=",w,"]"), probability=TRUE, col="gray", border="white")
+# lines(density(df), lwd = 2, col = "chocolate3")
 
-# cores = detectCores()
-# cl = makeCluster(cores[1]-1) #not to overload your computer
-# registerDoParallel(cl)
+dat.g <- left_join(metadata, genus, by = "ID")
+## Biomarkers data that was transformed.
+trans.biomark <- c("rbg","TNFalpha","CRP","HbA1cIFCC","IFN_gamma","IL10","IL12p40","IL12p70","IL13","IL15","IL17A",
+                   "IL18","IL1beta","IL2","IL33","IL4","IL5","IL6","LBP","MCP1","MIP1alpha")
 
-# library(foreach) ## If using multicore processing
-# 
-# mediation.dat <-
-#   foreach (i = 1:length(outcomes), .combine = rbind) %:%
-#     foreach(j = 1:length(exposures), .combine='c', .inorder=FALSE) %:%
-#       foreach(k = 55:ncol(dat.arc), .combine='c', .inorder=FALSE) %dopar% {
-#         set.seed(1234)
-#         outc <- outcomes[i]
-#         name <- exposures[j]
-#         dat.x <- na.omit(dat.arc[,c(names(dat.arc[k]),name, outc)])
-#         dput(names(dat.x))
-#         colnames(dat.x) <- c("x","y","z")
-#         ## A fitted model object for mediator
-#         med.fit <- lm(x ~ y, data = dat.x)
-#         ## A fitted model object for outcomes
-#         out.fit <- glm(z ~ x + y ,data = dat.x, family = gaussian)
-#         ## Mediate with bootsrapping
-#         med.out <- mediation::mediate(med.fit, out.fit, treat = "y", mediator = "x", sims = 1000, boot = TRUE)
-#         #print(summary(med.out))
-#         mediation:::print.summary.mediate(summary(med.out))
-#         print(strrep("-", 62), quote = F, row.names = F)
-#       }
-# 
-# sink("Mediation_arcsineAbundance.doc")
-# mediation.dat
-# sink()
-# parallel::stopCluster(cl)
+## Log transform biomarkers
+dat.g[trans.biomark] <- lapply(dat.g[trans.biomark],function(p) {log10(p + 1)}) ##log biomarkers not normally distributed.
+dat.arc.g <- dat.g
+dat.arc.g[,47:ncol(dat.arc.g)] <- lapply((dat.arc.g[,47:ncol(dat.arc.g)]),function(p) {asin(sqrt(p))})
 
-#---------------------------------------------------------------------
-# sink("Mediation_arcsineAbundance.doc")
-for (outc in outcomes){
-  for (name in exposures){
-    for (i in 47:ncol(dat.arc)){
-      set.seed(1234)
+sink("Mediation_arcsineGenusAbundance.doc")
+for (outc in outcomes) {
+  for (name in exposures) {
+    for (i in 47:ncol(dat.arc.g)) {
+      dat.x <- na.omit(dat.arc.g[,c(names(dat.arc.g[i]),name, outc)])
+      dput(names(dat.x))
+      colnames(dat.x) <- c("x","y","z")
+      ## A fitted model object for mediator
+      med.fit <- lm(x ~ y, data = dat.x)
+      ## A fitted model object for outcomes
+      out.fit <- glm(z ~ x + y ,data = dat.x, family = gaussian)
+      ## Mediate with bootsrapping
+      med.out <- mediate(med.fit, out.fit, treat = "y", mediator = "x", sims = 1000, boot = TRUE)
+		  mediation:::print.summary.mediate(med.out)
+}}}
+sink()
+
+############## Age adjusted #####################
+sink("Mediation_arcsineGenusAbundance_ageAdj.doc")
+for (outc in outcomes) {
+  for (name in exposures) {
+    for (i in 47:ncol(dat.arc.g)) {
+      if (name == "Age") {next}else{
+        set.seed(1234)
+        dat.x <- na.omit(dat.arc.g[,c(names(dat.arc.g[i]),name, outc,"Age")])
+        dput(names(dat.x))
+        colnames(dat.x) <- c("x","y","z","Age")
+        ## A fitted model object for mediator
+        med.fit <- lm(x ~ y + Age, data = dat.x)
+        ## A fitted model object for outcomes
+        out.fit <- glm(z ~ x + y + Age ,data = dat.x, family = gaussian)
+        ## Mediate with bootsrapping
+        med.out <- mediate(med.fit, out.fit, treat = "y", mediator = "x", sims = 1000, boot = TRUE)
+        #print(summary(med.out))
+		    mediation:::print.summary.mediate(summary(med.out))
+}}}}
+sink()
+
+set.seed(1234)# unadjusted
+med.fit <- lm(Lachnospiraceae_bacterium_8_1_57FAA ~ Sugar_drinks, data = dat.arc)
+out.fit <- glm(IL15 ~ Lachnospiraceae_bacterium_8_1_57FAA + Sugar_drinks ,data = dat.arc, family = gaussian)
+med.out <- mediate(med.fit, out.fit, treat = "Sugar_drinks", mediator = "Lachnospiraceae_bacterium_8_1_57FAA", sims = 1000, boot = TRUE)
+mediation:::print.summary.mediate(summary(med.out))
+
+set.seed(1234)# adj = age
+dat.x <- na.omit(dat.arc[,c("Lachnospiraceae_bacterium_8_1_57FAA", "Sugar_drinks", "IL15","Age")])
+med.fit <- lm(Lachnospiraceae_bacterium_8_1_57FAA ~ Sugar_drinks+Age, data = dat.x)
+out.fit <- glm(IL15 ~ Lachnospiraceae_bacterium_8_1_57FAA + Sugar_drinks +Age ,data = dat.x, family = gaussian)
+med.out <- mediate(med.fit, out.fit, treat = "Sugar_drinks", mediator = "Lachnospiraceae_bacterium_8_1_57FAA", sims = 1000, boot = TRUE)
+mediation:::print.summary.mediate(summary(med.out))
+
+set.seed(1234)#adj = age +site
+dat.x <- na.omit(dat.arc[,c("Lachnospiraceae_bacterium_8_1_57FAA", "Sugar_drinks", "IL15","Age", "Site")])
+med.fit <- lm(Lachnospiraceae_bacterium_8_1_57FAA ~ Sugar_drinks+Age+Site, data = dat.x)
+out.fit <- glm(IL15 ~ Lachnospiraceae_bacterium_8_1_57FAA + Sugar_drinks +Age+Site ,data = dat.x, family = gaussian)
+med.out <- mediate(med.fit, out.fit, treat = "Sugar_drinks", mediator = "Lachnospiraceae_bacterium_8_1_57FAA", sims = 1000, boot = TRUE)
+mediation:::print.summary.mediate(summary(med.out))
+
+set.seed(1234)#adj = age+site+Fruit+Vegetables+Takeaway+Seafood
+dat.x <- na.omit(dat.arc[,c("Lachnospiraceae_bacterium_8_1_57FAA", "Sugar_drinks", "IL15","Age", "Site", "Fruits", "Vegetables", "Takeaway", "Seafood", "Gender", "BMI", "Alcohol", "Smoking_cig")])
+med.fit <- lm(Lachnospiraceae_bacterium_8_1_57FAA ~ Sugar_drinks+Age+Site+Fruits+Vegetables+Takeaway+Seafood+Gender+BMI+Alcohol+Smoking_cig, data = dat.x)
+out.fit <- glm(IL15 ~ Lachnospiraceae_bacterium_8_1_57FAA + Sugar_drinks +Age+Site+Fruits+Vegetables+Takeaway+Seafood+Gender+BMI+Alcohol+Smoking_cig ,data = dat.x, family = gaussian)
+med.out1 <- mediate(med.fit, out.fit, treat = "Sugar_drinks", mediator = "Lachnospiraceae_bacterium_8_1_57FAA", sims = 1000, boot = TRUE)
+mediation:::print.summary.mediate(summary(med.out1))
+
+####################  DBP ##############
+set.seed(1234)# unadjusted
+dat.x <- na.omit(dat.arc[,c("Lachnospiraceae_bacterium_8_1_57FAA", "Sugar_drinks", "IL15","Age", "Site","dbp")])
+med.fit <- lm(Lachnospiraceae_bacterium_8_1_57FAA ~ Sugar_drinks, data = dat.x)
+out.fit <- glm(dbp ~ Lachnospiraceae_bacterium_8_1_57FAA + Sugar_drinks ,data = dat.x, family = gaussian)
+med.out <- mediate(med.fit, out.fit, treat = "Sugar_drinks", mediator = "Lachnospiraceae_bacterium_8_1_57FAA", sims = 1000, boot = TRUE)
+mediation:::print.summary.mediate(summary(med.out))
+
+set.seed(1234)# adj = age
+dat.x <- na.omit(dat.arc[,c("Lachnospiraceae_bacterium_8_1_57FAA", "Sugar_drinks", "dbp","Age")])
+med.fit <- lm(Lachnospiraceae_bacterium_8_1_57FAA ~ Sugar_drinks+Age, data = dat.x)
+out.fit <- glm(dbp ~ Lachnospiraceae_bacterium_8_1_57FAA + Sugar_drinks +Age ,data = dat.x, family = gaussian)
+med.out <- mediate(med.fit, out.fit, treat = "Sugar_drinks", mediator = "Lachnospiraceae_bacterium_8_1_57FAA", sims = 1000, boot = TRUE)
+print("age")
+mediation:::print.summary.mediate(summary(med.out))
+
+set.seed(1234)#adj = age +site
+dat.x <- na.omit(dat.arc[,c("Lachnospiraceae_bacterium_8_1_57FAA", "Sugar_drinks", "dbp","Age", "Site")])
+med.fit <- lm(Lachnospiraceae_bacterium_8_1_57FAA ~ Sugar_drinks+Age+Site, data = dat.x)
+out.fit <- glm(dbp ~ Lachnospiraceae_bacterium_8_1_57FAA + Sugar_drinks +Age+Site ,data = dat.x, family = gaussian)
+med.out <- mediate(med.fit, out.fit, treat = "Sugar_drinks", mediator = "Lachnospiraceae_bacterium_8_1_57FAA", sims = 1000, boot = TRUE)
+print("age+site")
+mediation:::print.summary.mediate(summary(med.out))
+
+set.seed(1234)#adj = age+site+Fruit+Vegetables+Takeaway+Seafood
+dat.x <- na.omit(dat.arc[,c("Lachnospiraceae_bacterium_8_1_57FAA", "Sugar_drinks", "dbp","Age", "Site", "Fruits", "Vegetables", "Takeaway", "Seafood", "Gender", "BMI", "Alcohol", "Smoking_cig")])
+med.fit <- lm(Lachnospiraceae_bacterium_8_1_57FAA ~ Sugar_drinks+Age+Site+Fruits+Vegetables+Takeaway+Seafood+Gender+BMI+Alcohol+Smoking_cig, data = dat.x)
+out.fit <- glm(dbp ~ Lachnospiraceae_bacterium_8_1_57FAA + Sugar_drinks +Age+Site+Fruits+Vegetables+Takeaway+Seafood+Gender+BMI+Alcohol+Smoking_cig ,data = dat.x, family = gaussian)
+med.out1 <- mediate(med.fit, out.fit, treat = "Sugar_drinks", mediator = "Lachnospiraceae_bacterium_8_1_57FAA", sims = 1000, boot = TRUE)
+print("mutivariate")
+mediation:::print.summary.mediate(summary(med.out1))
+
+####################  SBP ##############
+set.seed(1234)# unadjusted
+dat.x <- na.omit(dat.arc[,c("Lachnospiraceae_bacterium_8_1_57FAA", "Sugar_drinks", "Age", "Site","sbp")])
+med.fit <- lm(Lachnospiraceae_bacterium_8_1_57FAA ~ Sugar_drinks, data = dat.x)
+out.fit <- glm(sbp ~ Lachnospiraceae_bacterium_8_1_57FAA + Sugar_drinks ,data = dat.x, family = gaussian)
+med.out <- mediate(med.fit, out.fit, treat = "Sugar_drinks", mediator = "Lachnospiraceae_bacterium_8_1_57FAA", sims = 1000, boot = TRUE)
+mediation:::print.summary.mediate(summary(med.out))
+
+set.seed(1234)# adj = age
+dat.x <- na.omit(dat.arc[,c("Lachnospiraceae_bacterium_8_1_57FAA", "Sugar_drinks", "sbp","Age")])
+med.fit <- lm(Lachnospiraceae_bacterium_8_1_57FAA ~ Sugar_drinks+Age, data = dat.x)
+out.fit <- glm(sbp ~ Lachnospiraceae_bacterium_8_1_57FAA + Sugar_drinks +Age ,data = dat.x, family = gaussian)
+med.out <- mediate(med.fit, out.fit, treat = "Sugar_drinks", mediator = "Lachnospiraceae_bacterium_8_1_57FAA", sims = 1000, boot = TRUE)
+print("age")
+mediation:::print.summary.mediate(summary(med.out))
+
+set.seed(1234)#adj = age +site
+dat.x <- na.omit(dat.arc[,c("Lachnospiraceae_bacterium_8_1_57FAA", "Sugar_drinks", "sbp","Age", "Site")])
+med.fit <- lm(Lachnospiraceae_bacterium_8_1_57FAA ~ Sugar_drinks+Age+Site, data = dat.x)
+out.fit <- glm(sbp ~ Lachnospiraceae_bacterium_8_1_57FAA + Sugar_drinks +Age+Site ,data = dat.x, family = gaussian)
+med.out <- mediate(med.fit, out.fit, treat = "Sugar_drinks", mediator = "Lachnospiraceae_bacterium_8_1_57FAA", sims = 1000, boot = TRUE)
+print("age+site")
+mediation:::print.summary.mediate(summary(med.out))
+
+set.seed(1234)#adj = age+site+Fruit+Vegetables+Takeaway+Seafood
+dat.y <- na.omit(dat.arc[,c("Lachnospiraceae_bacterium_8_1_57FAA", "Sugar_drinks", "sbp","Age", "Site", "Fruits", "Vegetables", "Takeaway", "Seafood", "Gender", "BMI", "Alcohol", "Smoking_cig")])
+med.fit <- lm(Lachnospiraceae_bacterium_8_1_57FAA ~ Sugar_drinks+Age+Site+Fruits+Vegetables+Takeaway+Seafood+Gender+BMI+Alcohol+Smoking_cig, data = dat.y)
+out.fit <- glm(sbp ~ Lachnospiraceae_bacterium_8_1_57FAA + Sugar_drinks +Age+Site+Fruits+Vegetables+Takeaway+Seafood+Gender+BMI+Alcohol+Smoking_cig ,data = dat.y, family = gaussian)
+med.out1 <- mediate(med.fit, out.fit, treat = "Sugar_drinks", mediator = "Lachnospiraceae_bacterium_8_1_57FAA", sims = 1000, boot = TRUE)
+print("mutivariate")
+mediation:::print.summary.mediate(summary(med.out1))
+
+sink("Mediation_arcsineSpp_MAP_Lachno_Sugar.doc")
+####################  MAP ##############
+set.seed(1234)# unadjusted
+dat.x <- na.omit(dat.arc[,c("Lachnospiraceae_bacterium_8_1_57FAA", "Sugar_drinks", "Age", "Site","MAP")])
+med.fit <- lm(Lachnospiraceae_bacterium_8_1_57FAA ~ Sugar_drinks, data = dat.x)
+out.fit <- glm(MAP ~ Lachnospiraceae_bacterium_8_1_57FAA + Sugar_drinks ,data = dat.x, family = gaussian)
+med.out <- mediate(med.fit, out.fit, treat = "Sugar_drinks", mediator = "Lachnospiraceae_bacterium_8_1_57FAA", sims = 1000, boot = TRUE)
+mediation:::print.summary.mediate(summary(med.out))
+
+set.seed(1234)# adj = age
+dat.x <- na.omit(dat.arc[,c("Lachnospiraceae_bacterium_8_1_57FAA", "Sugar_drinks", "MAP","Age")])
+med.fit <- lm(Lachnospiraceae_bacterium_8_1_57FAA ~ Sugar_drinks+Age, data = dat.x)
+out.fit <- glm(MAP ~ Lachnospiraceae_bacterium_8_1_57FAA + Sugar_drinks +Age ,data = dat.x, family = gaussian)
+med.out <- mediate(med.fit, out.fit, treat = "Sugar_drinks", mediator = "Lachnospiraceae_bacterium_8_1_57FAA", sims = 1000, boot = TRUE)
+print("age")
+mediation:::print.summary.mediate(summary(med.out))
+
+set.seed(1234)#adj = age +site
+dat.x <- na.omit(dat.arc[,c("Lachnospiraceae_bacterium_8_1_57FAA", "Sugar_drinks", "MAP","Age", "Site")])
+med.fit <- lm(Lachnospiraceae_bacterium_8_1_57FAA ~ Sugar_drinks+Age+Site, data = dat.x)
+out.fit <- glm(MAP ~ Lachnospiraceae_bacterium_8_1_57FAA + Sugar_drinks +Age+Site ,data = dat.x, family = gaussian)
+med.out <- mediate(med.fit, out.fit, treat = "Sugar_drinks", mediator = "Lachnospiraceae_bacterium_8_1_57FAA", sims = 1000, boot = TRUE)
+print("age+site")
+mediation:::print.summary.mediate(summary(med.out))
+
+set.seed(1234)#adj = age+site+Fruit+Vegetables+Takeaway+Seafood
+dat.y <- na.omit(dat.arc[,c("Lachnospiraceae_bacterium_8_1_57FAA", "Sugar_drinks", "MAP","Age", "Site", "Fruits", "Vegetables", "Takeaway", "Seafood", "Gender", "BMI", "Alcohol", "Smoking_cig")])
+med.fit <- lm(Lachnospiraceae_bacterium_8_1_57FAA ~ Sugar_drinks+Age+Site+Fruits+Vegetables+Takeaway+Seafood+Gender+BMI+Alcohol+Smoking_cig, data = dat.y)
+out.fit <- glm(MAP ~ Lachnospiraceae_bacterium_8_1_57FAA + Sugar_drinks +Age+Site+Fruits+Vegetables+Takeaway+Seafood+Gender+BMI+Alcohol+Smoking_cig ,data = dat.y, family = gaussian)
+med.out1 <- mediate(med.fit, out.fit, treat = "Sugar_drinks", mediator = "Lachnospiraceae_bacterium_8_1_57FAA", sims = 1000, boot = TRUE)
+print("mutivariate")
+mediation:::print.summary.mediate(summary(med.out1))
+sink()
+
+# correlation
+corr <- cor.test(x = dat.arc$Lachnospiraceae_bacterium_8_1_57FAA, y = dat.arc$MAP, method = 'spearman')
+corr$estimate
+corr$p.value
+# > corr$estimate
+# rho = 0.2683827 
+# > corr$p.value
+# p = 0.007232921
+
+library(ggplot2)
+ggplot(dat.arc, aes(x = Lachnospiraceae_bacterium_8_1_57FAA, y = MAP)) + 
+  geom_point(color = '#2980B9', size = 4) + 
+  geom_smooth(method = lm, se = FALSE, fullrange = TRUE, color = '#2C3E50')
+
+# abundance
+ggplot(dat.arc, aes(factor(Site), Lachnospiraceae_bacterium_8_1_57FAA)) + 
+  geom_bar(stat = "identity") 
+
+```
+
+#### Mediation and moderation on TSI species data
+ADE; Average Direct Effect. ACME; Average Causal Mediation Effect
+```{r}
+sink("Mediation_relab.doc")
+for (outc in outcomes) {
+# for (outc in outcomes) {
+  for (name in exposures) {
+    for (i in 82:ncol(dat)) {
+      dat.x <- na.omit(dat[,c(names(dat[i]),name, outc)])
+      dput(names(dat.x))
+      colnames(dat.x) <- c("x","y","z")
+      ## A fitted model object for mediator
+      med.fit <- lm(x ~ y, data = dat.x)
+      ## A fitted model object for outcomes
+      out.fit <- glm(z ~ x + y ,data = dat.x, family = gaussian)
+      ## Mediate with bootsrapping
+      med.out <- mediate(med.fit, out.fit, treat = "y", mediator = "x", sims = 1000, boot = TRUE)
+      print(summary(med.out))
+      plot(med.out)
+}}}
+sink()
+
+sink("Mediation_logAbundance.doc")
+for (outc in outcomes) {
+  for (name in exposures) {
+    for (i in 82:ncol(dat.log)) {
+      dat.x <- na.omit(dat.log[,c(names(dat.log[i]),name, outc)])
+      dput(names(dat.x))
+      colnames(dat.x) <- c("x","y","z")
+      ## A fitted model object for mediator
+      med.fit <- lm(x ~ y, data = dat.x)
+      ## A fitted model object for outcomes
+      out.fit <- glm(z ~ x + y ,data = dat.x, family = gaussian)
+      ## Mediate with bootsrapping
+      med.out <- mediate(med.fit, out.fit, treat = "y", mediator = "x", sims = 1000, boot = TRUE)
+      print(summary(med.out))
+}}}
+sink()
+
+sink("Mediation_arcsineAbundance.doc")
+for (outc in outcomes) {
+  for (name in exposures) {
+    for (i in 82:ncol(dat.arc)) {
       dat.x <- na.omit(dat.arc[,c(names(dat.arc[i]),name, outc)])
       dput(names(dat.x))
       colnames(dat.x) <- c("x","y","z")
@@ -658,29 +322,117 @@ for (outc in outcomes){
       out.fit <- glm(z ~ x + y ,data = dat.x, family = gaussian)
       ## Mediate with bootsrapping
       med.out <- mediate(med.fit, out.fit, treat = "y", mediator = "x", sims = 1000, boot = TRUE)
-      #print(summary(med.out))
-	  mediation:::print.summary.mediate(summary(med.out))
-	  print(strrep("-", 62), quote = F, row.names = F)
-    }
-  # }
-}
+      print(summary(med.out))
+}}}
+sink()
 
-# sink()
+sink("Mediation_presence_absence.doc")
+for (outc in outcomes) {
+  for (name in exposures) {
+    for (i in 82:ncol(dat.presAbs)) {
+      dat.x <- na.omit(dat.presAbs[,c(names(dat.presAbs[i]),name, outc)])
+      dput(names(dat.x))
+      colnames(dat.x) <- c("x","y","z")
+      ## A fitted model object for mediator
+      med.fit <- lm(x ~ y, data = dat.x)
+      ## A fitted model object for outcomes
+      out.fit <- glm(z ~ x + y ,data = dat.x)
+      ## Mediate with bootsrapping
+      med.out <- mediate(med.fit, out.fit, treat = "y", mediator = "x", sims = 1000, boot = TRUE)
+      print(summary(med.out))
+}}}
+sink()
+
+############## Age adjusted #####################
+sink("Mediation_arcsineAbundance_ageAdj.doc")
+for (outc in outcomes) {
+  for (name in exposures) {
+    for (i in 47:ncol(dat.arc)) {
+      if (name == "Age") {next}else{
+        dat.x <- na.omit(dat[,c(names(dat[i]),name, outc,"Age")])
+        dput(names(dat.x))
+        colnames(dat.x) <- c("x","y","z","Age")
+        ## A fitted model object for mediator
+        med.fit <- lm(x ~ y + Age, data = dat.x)
+        ## A fitted model object for outcomes
+        out.fit <- glm(z ~ x + y + Age ,data = dat.x, family = gaussian)
+        ## Mediate with bootsrapping
+        med.out <- mediate(med.fit, out.fit, treat = "y", mediator = "x", sims = 1000, boot = TRUE)
+        #print(summary(med.out))
+		    mediation:::print.summary.mediate(summary(med.out))
+		    noquote(strrep("-", 62))
+}}}}
+sink()
+
+############### ISLAND #########################
+sink("Mediation_lsland.doc")
+for (outc in outcomes) {
+  for (i in 82:ncol(dat.arc)) {
+    if (outc == "Age") {next}else{
+    dat.x <- na.omit(dat.arc[,c(names(dat.arc[i]),"Site", outc)])
+    dput(names(dat.x))
+    colnames(dat.x) <- c("x","y","z")
+    ## A fitted model object for mediator
+    med.fit <- lm(x ~ y, data = dat.x)
+    ## A fitted model object for outcomes
+    out.fit <- glm(z ~ x + y ,data = dat.x, family = gaussian)
+    ## Mediate with bootsrapping
+    med.out <- mediate(med.fit, out.fit, treat = "y", mediator = "x", sims = 500, boot = TRUE)
+    print(summary(med.out))
+}}}
+sink()
+
+# #for Presence aBSENCE:: FAMILY=BINOMIAL, LINK=probit
+med.fit <- lm(Lachnospiraceae_bacterium_8_1_57FAA ~ Alcohol + Age, data = dat.arc)
+## A fitted model object for outcomes
+out.fit <- glm(IL15 ~ Lachnospiraceae_bacterium_8_1_57FAA + Alcohol + Age , data = dat.arc, family = gaussian)
+## Mediate with bootsrapping
+med.out <- mediate(med.fit, out.fit, treat = "Alcohol", mediator = "Lachnospiraceae_bacterium_8_1_57FAA", boot = TRUE)
+summary(med.out, digits = 5)
+mediation:::print.summary.mediate(summary(med.out))
+
+plot(med.out)
+x <- dat.arc
+s3d <- scatterplot3d(x$Roseburia_intestinalis,x$Alcohol,x$IL15, type = "h", color = "blue", angle = 60, pch = 16) # Add regression plane
+my.lm <- lm(x$IL15 ~ x$Roseburia_intestinalis+x$Alcohol)
+s3d$plane3d(my.lm)
+
+#### Plot mediation Roseburia intestanalis
+
+my_comparisons <- list( c("1", "2"))
+ggboxplot(dat.arc, x = "Site", y = "Roseburia_intestinalis", color = "Site", palette = "jco") + 
+    stat_compare_means(comparisons = my_comparisons) + # Add pairwise comparisons p-value
+    stat_compare_means(label.y = 0.5)
+
+ggboxplot(dat.arc, y = "Age", x = "Site", color = "Site", palette = "jco") + 
+  stat_compare_means(method = "anova", label.y = 80) +      # Add global p-value
+  stat_compare_means(label = "p.signif", method = "t.test",
+                     ref.group = ".all.")  
+
+ggscatter(dat.arc, "IL15","Alcohol")
 
 ```
 
-# Session information
+### Scatter mediation-interraction p-values
+```{r}
+library(ggplot2)
+p_value <- read.delim("Type_III_SS_pva_filtered.tsv", sep = "\t")
+(gp <- ggplot(p_value %>% filter(type == "inte_site_spp"),
+              aes(y = Pr.F, x = reorder(Source, -Pr.F))) + 
+    geom_point() +
+    ylab("P-value") +
+    xlab("Species-Site interaction") +
+    geom_hline(yintercept = 0.05, linetype = "dashed", color = "red", size = 1) +
+    theme(axis.text.x = element_text(angle = 90, vjust = 0.5)))
+
+ggsave(gp, filename = "interavtion_pvalue.pdf", height = 10, width = 12, units = "in")
+
+``` 
+
+#### Session information
 ```{r}
 date()
-# sessionInfo()
+sessionInfo()
 
 ```
-....................  THE END  .....................
 
-<span style="color:DarkBlue; font-size:9px;">
-  Author: <a href="https://au.linkedin.com/in/fmobegi" target="_blank">Fredrick M. Mobegi, PhD</a><br/>
-  Created: 24-02-2018 Mon 0830h<br/>
-  Updated: 29-07-2020 Wed 1400h<br/>
-  Copyright &copy; 2020 | This notebook is for research purposes only and use of the linked data must be accompanied with written permission. It contain embargoed data and/or links and references to embargoed or legally privileged data from Aboriginal and Torres Strait Islander Health Surveys in a program called the Well Persons Health Check (WPHC). In 2016, Torres and Cape Hospital and Health Service (TCHHS) collaborated with James Cook University (Zenadth Kes Health Partnership) to conduct these surveys in two Australian island communities, Waiben and Mer. Use of this data in our study was approved by the Far North Queensland Human Research Ethics Committee (HREC/16/QCH/70-1059) and received a written support from the local Community Council, Primary Health Care Service and TCHHS.<br/>For permission requests, write to the Director of <a href="https://www.sahmriresearch.org/our-research/themes/infection-immunity/our-team" target="_blank">Microbiome Research Laboratory</a> at <a href="https://www.sahmriresearch.org/" target="_blank">SAHMRI</a>.
-</span><br/>
-....................................................
