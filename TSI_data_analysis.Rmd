@@ -18,25 +18,23 @@ knitr::opts_chunk$set(echo = TRUE)
 ```{r libraries, warning=FALSE, message=FALSE}
 
 if (!require("pacman")) install.packages("pacman")
-pacman::p_load("knitr", "dplyr", "scales", "car", "doParallel", "ggpubr",
-               "mediation","tibble","stringr","ggplot2","psych","lavaan",
-               "semTools","ggrepel","vegan","phyloseq","FactoMineR","factoextra",
-               "gplots","corrplot","ggvegan",
-               install = TRUE)
-library("MicrobiomeAnalystR") ## cannot be installed with pacman-use Webpage for quick analysis
+pacman::p_load(knitr, dplyr, scales, car, doParallel, ggpubr, mediation, tibble, stringr, ggplot2,
+               psych, lavaan, semTools, ggrepel, vegan, phyloseq, FactoMineR, factoextra, gplots,corrplot,
+               ggvegan, install = TRUE)
+
+# library("MicrobiomeAnalystR") ## cannot be installed with pacman-use Webpage for quick analysis
 
 ## Change mediation function to print out up to 3 decimals for mediation
-
 trace(mediation:::print.summary.mediate, 
       at = 11,
       tracer = quote({
         printCoefmat <- function(x, digits) {
           p <- x[, 4] #p-values seem to be stored rounded
           x[, 1:3] <- sprintf("%.5f", x[, 1:3])
-		  x[, 4] <- sprintf("%.3f", p)
-		  x[, 4] <- paste(p,gtools::stars.pval(p), sep = " ")
+          x[, 4] <- sprintf("%.3f", p)
+		      x[, 4] <- paste(p,gtools::stars.pval(p), sep = " ")
           print(x, quote = FALSE, left = TRUE)
-        } 
+        }
       }),
       print = FALSE)
 
